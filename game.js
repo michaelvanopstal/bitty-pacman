@@ -269,6 +269,8 @@ function applyResponsiveLayout() {
   const manualOffsetX = 22;      // ← pixels naar rechts
   const manualOffsetY = 0;       // ← meestal 0 laten
 
+
+  
   // automatische schaal
   let s = Math.min(vw / base, vh / base);
 
@@ -349,28 +351,30 @@ const GHOST_MODE_IN_PEN     = 4;
 const GHOST_MODE_LEAVING    = 5;
 
 // Level 1 (jouw “oude” schema)
+// Level 1 (rustiger: langer scatter, korter chase)
 const GHOST_MODE_SEQUENCE_L1 = [
-  { mode: GHOST_MODE_SCATTER, durationMs: 2 * 1000 },
-  { mode: GHOST_MODE_CHASE,   durationMs: 40 * 1000 },
-  { mode: GHOST_MODE_SCATTER, durationMs:  2 * 1000 },
-  { mode: GHOST_MODE_CHASE,   durationMs:  Infinity },
+  { mode: GHOST_MODE_SCATTER, durationMs: 8 * 1000 },
+  { mode: GHOST_MODE_CHASE,   durationMs: 15 * 1000 },
+  { mode: GHOST_MODE_SCATTER, durationMs: 8 * 1000 },
+  { mode: GHOST_MODE_CHASE,   durationMs: Infinity },
 ];
 
-// Level 2 (houd jouw huidige waarden hier)
+// Level 2 (iets pittiger dan L1, maar nog steeds rustiger dan je oude)
 const GHOST_MODE_SEQUENCE_L2 = [
-  { mode: GHOST_MODE_SCATTER, durationMs:  4 * 1000 },
-  { mode: GHOST_MODE_CHASE,   durationMs: 50 * 1000 },
-  { mode: GHOST_MODE_SCATTER, durationMs:  4 * 1000 },
-  { mode: GHOST_MODE_CHASE,   durationMs:  Infinity },
+  { mode: GHOST_MODE_SCATTER, durationMs: 7 * 1000 },
+  { mode: GHOST_MODE_CHASE,   durationMs: 20 * 1000 },
+  { mode: GHOST_MODE_SCATTER, durationMs: 7 * 1000 },
+  { mode: GHOST_MODE_CHASE,   durationMs: Infinity },
 ];
 
-// Level 3 (extra agressief)
+// Level 3 (extra agressief, maar nog steeds minder lang chase dan eerst)
 const GHOST_MODE_SEQUENCE_L3 = [
-  { mode: GHOST_MODE_SCATTER, durationMs:  5 * 1000 },
-  { mode: GHOST_MODE_CHASE,   durationMs: 60 * 1000 },
-  { mode: GHOST_MODE_SCATTER, durationMs:  5 * 1000 },
-  { mode: GHOST_MODE_CHASE,   durationMs:  Infinity },
+  { mode: GHOST_MODE_SCATTER, durationMs: 6 * 1000 },
+  { mode: GHOST_MODE_CHASE,   durationMs: 25 * 1000 },
+  { mode: GHOST_MODE_SCATTER, durationMs: 6 * 1000 },
+  { mode: GHOST_MODE_CHASE,   durationMs: Infinity },
 ];
+
 
 function getGhostModeSequenceForLevel() {
   if (currentLevel === 3 || currentLevel === 4) return GHOST_MODE_SEQUENCE_L3;
@@ -423,17 +427,34 @@ let FRIGHT_FLASH_MS    = 5000;    // in de laatste 5 sec gaat het knipperen
 // ─────────────────────────────────────────────
 // 🔥 VUURMODE (FRIGHTENED) DUUR PER LEVEL
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// 🔥 VUURMODE (FRIGHTENED) – DUUR PER LEVEL
+// ─────────────────────────────────────────────
 const FRIGHT_CONFIG_BY_LEVEL = {
-  1: { durationMs: 12000, flashMs: 5000 },  // Level 1
-  2: { durationMs: 10000, flashMs: 4000 },  // Level 2
-  3: { durationMs:  8000, flashMs: 3000 },  // Level 3
-  4: { durationMs:  8000, flashMs: 3000 },  // Level 4 (zelfde als level 3)
+  1: { durationMs: 10000, flashMs: 5000 }, // Level 1: lang & veilig
+  2: { durationMs:  9000, flashMs: 4000 }, // Level 2: iets korter
+  3: { durationMs:  8000, flashMs: 3000 }, // Level 3: pittig
+  4: { durationMs:  7000, flashMs: 3000 }, // Level 4+: agressief
 };
 
-// helper: haalt juiste config op (fallback naar level 1)
-function getFrightConfigForLevel() {
-  return FRIGHT_CONFIG_BY_LEVEL[currentLevel] || FRIGHT_CONFIG_BY_LEVEL[1];
+// ─────────────────────────────────────────────
+// helper: haalt juiste fright-config op
+// fallback → level 1 (veilig)
+// ─────────────────────────────────────────────
+function getFrightConfigForLevel(level = currentLevel) {
+  return FRIGHT_CONFIG_BY_LEVEL[level] || FRIGHT_CONFIG_BY_LEVEL[1];
 }
+
+// ─────────────────────────────────────────────
+// past fright-config toe op runtime variabelen
+// ─────────────────────────────────────────────
+function applyFrightConfigForLevel(level = currentLevel) {
+  const { durationMs, flashMs } = getFrightConfigForLevel(level);
+
+  FRIGHT_DURATION_MS = durationMs;
+  FRIGHT_FLASH_MS    = flashMs;
+}
+
 
 // ───────────────────────────────────────────────
 // BITTY OVERLAY CONFIG
@@ -1456,8 +1477,10 @@ function applySpeedsForLevel() {
         CLYDE_SCATTER_DISTANCE_TILES * CLYDE_SCATTER_DISTANCE_TILES;
     }
   }
-} // ✅ BELANGRIJK: deze } miste, daardoor kreeg je Unexpected end of input
 
+applyFrightConfigForLevel();
+
+} 
 
 // ---------------------------------------------------------------------------
 // MAZE helpers
@@ -3223,6 +3246,91 @@ function startFourGhostBonus(triggerX, triggerY) {
 }
 
 
+// ---------------------------------------------------------------------------
+// GHOST AI UPGRADES (A + B + C)
+// ---------------------------------------------------------------------------
+
+// Hoe vaak een ghost in SCATTER een nieuw doel kiest (meer "dolen")
+const SCATTER_RETARGET_MS = 1200;
+
+// Scatter zones per ghost (kwadranten / gebieden) -> meer spreiding over het veld
+function getScatterZone(g) {
+  const cols = MAZE[0].length;
+  const rows = MAZE.length;
+
+  // marge zodat ze niet constant tegen buitenmuren plakken
+  const pad = 2;
+
+  // eenvoudige zones: 4 kwadranten
+  const midC = Math.floor(cols / 2);
+  const midR = Math.floor(rows / 2);
+
+  switch (g.id) {
+    case 1: // Blinky: rechtsboven
+      return { c0: midC, c1: cols - 1 - pad, r0: pad,     r1: midR };
+    case 2: // Pinky: linksboven
+      return { c0: pad,  c1: midC,         r0: pad,     r1: midR };
+    case 3: // Inky: rechtsonder
+      return { c0: midC, c1: cols - 1 - pad, r0: midR,  r1: rows - 1 - pad };
+    case 4: // Clyde: linksonder
+    default:
+      return { c0: pad,  c1: midC,         r0: midR,   r1: rows - 1 - pad };
+  }
+}
+
+function isWalkableTile(c, r) {
+  if (r < 0 || r >= MAZE.length) return false;
+  if (c < 0 || c >= MAZE[0].length) return false;
+  return !isWall(c, r);
+}
+
+function pickRandomTileInZone(zone, maxTries = 40) {
+  for (let i = 0; i < maxTries; i++) {
+    const c = zone.c0 + Math.floor(Math.random() * (zone.c1 - zone.c0 + 1));
+    const r = zone.r0 + Math.floor(Math.random() * (zone.r1 - zone.r0 + 1));
+    if (isWalkableTile(c, r)) return { c, r };
+  }
+  // fallback: midden van zone
+  const c = Math.floor((zone.c0 + zone.c1) / 2);
+  const r = Math.floor((zone.r0 + zone.r1) / 2);
+  return { c, r };
+}
+
+// Elke ghost krijgt een andere tie-break volgorde => minder "treintje"
+function getGhostPrefOrder(g) {
+  // Let op: jouw code gebruikt vectors {x,y} met up = {0,-1}
+  // We geven per ghost een andere volgorde.
+  switch (g.id) {
+    case 1: // Blinky: aggressive -> voorkeur vooruit (right/down iets vaker)
+      return [{ x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+    case 2: // Pinky: meer "links/up"
+      return [{ x: -1, y: 0 }, { x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }];
+    case 3: // Inky: "down/right"
+      return [{ x: 0, y: 1 }, { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: -1 }];
+    case 4: // Clyde: "down/left"
+    default:
+      return [{ x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 0 }];
+  }
+}
+
+// C: vermijd tiles waar andere ghosts zitten (of heel dicht erbij)
+function isTooCloseToOtherGhost(nc, nr, selfGhost) {
+  for (const other of ghosts) {
+    if (other === selfGhost) continue;
+    const oc = Math.round(other.x / TILE_SIZE - 0.5);
+    const or = Math.round(other.y / TILE_SIZE - 0.5);
+
+    const manhattan = Math.abs(nc - oc) + Math.abs(nr - or);
+
+    // 0 = zelfde tile, 1 = direct naast. Dit breekt treintjes heel sterk.
+    if (manhattan <= 1) return true;
+  }
+  return false;
+}
+
+const SCATTER_ALERT_RADIUS = 4;      // tiles: binnen dit -> chase trigger
+const SCATTER_CALM_RADIUS  = 8;      // tiles: pas terug als buiten dit (hysteresis)
+const SCATTER_ALERT_CHASE_MS = 5000; // 5 seconden chase
 
 function setGhostTarget(g) {
   // Pacman-tile en richting
@@ -3253,7 +3361,7 @@ function setGhostTarget(g) {
     }
   }
 
-  // 2) FRIGHTENED / IN_PEN → geen gericht target, random gedrag
+  // 2) FRIGHTENED / IN_PEN / LEAVING → geen gericht target
   if (
     g.mode === GHOST_MODE_FRIGHTENED ||
     g.mode === GHOST_MODE_IN_PEN ||
@@ -3263,23 +3371,50 @@ function setGhostTarget(g) {
     return;
   }
 
-  // 3) Alleen SCATTER & CHASE krijgen echt een target
+  // 3) Alleen SCATTER & CHASE krijgen een target
   if (g.mode !== GHOST_MODE_SCATTER && g.mode !== GHOST_MODE_CHASE) {
     g.targetTile = null;
     return;
   }
 
-  // SCATTER: altijd naar eigen hoek
+  // ─────────────────────────────────────────────
+  // SCATTER: rondzwerven in een eigen zone
+  // ─────────────────────────────────────────────
   if (g.mode === GHOST_MODE_SCATTER) {
-    if (g.scatterTile) {
-      g.targetTile = { c: g.scatterTile.c, r: g.scatterTile.r };
-    } else {
-      g.targetTile = { c: playerC, r: playerR }; // fallback
+    const zone = getScatterZone(g);
+
+    // eerste keer: init
+    if (!g.scatterWanderTile) {
+      g.scatterWanderTile = pickRandomTileInZone(zone);
+      g.scatterNextPickTime = gameTime + SCATTER_RETARGET_MS;
     }
+
+    // na timer: nieuw doel
+    if (g.scatterNextPickTime == null || gameTime >= g.scatterNextPickTime) {
+      g.scatterWanderTile = pickRandomTileInZone(zone);
+      g.scatterNextPickTime = gameTime + SCATTER_RETARGET_MS;
+    }
+
+    // als hij dichtbij is: nieuw doel (blijft bewegen)
+    const gC = Math.round(g.x / TILE_SIZE - 0.5);
+    const gR = Math.round(g.y / TILE_SIZE - 0.5);
+    const near =
+      Math.abs(gC - g.scatterWanderTile.c) +
+      Math.abs(gR - g.scatterWanderTile.r) <= 1;
+
+    if (near) {
+      g.scatterWanderTile = pickRandomTileInZone(zone);
+      g.scatterNextPickTime = gameTime + SCATTER_RETARGET_MS;
+    }
+
+    g.targetTile = { c: g.scatterWanderTile.c, r: g.scatterWanderTile.r };
     return;
   }
 
-  // Vanaf hier: CHASE-mode
+  // ─────────────────────────────────────────────
+  // Vanaf hier: CHASE-mode (persoonlijkheden)
+  // ─────────────────────────────────────────────
+
   // 1) Blinky – direct op Pacman
   if (g.id === 1) {
     g.targetTile = { c: playerC, r: playerR };
@@ -3348,16 +3483,43 @@ function setGhostTarget(g) {
   g.targetTile = { c: playerC, r: playerR };
 }
 
+
+
 function updateOneGhost(g) {
   if (g.mode === GHOST_MODE_EATEN) {
     g.speed = SPEED_CONFIG.ghostEyesSpeed;
   }
 
   // Huidige tile & tile-midden berekenen
-  const c   = Math.round(g.x / TILE_SIZE - 0.5);
-  const r   = Math.round(g.y / TILE_SIZE - 0.5);
+  const c = Math.round(g.x / TILE_SIZE - 0.5);
+  const r = Math.round(g.y / TILE_SIZE - 0.5);
   const mid = tileCenter(c, r);
   const dist = Math.hypot(g.x - mid.x, g.y - mid.y);
+
+  // ─────────────────────────────────────────────
+  // SCATTER ALERT: Pac-Man dichtbij → tijdelijk CHASE (5s)
+  // Plaatsing: vóór setGhostTarget(g), zodat het target klopt
+  // ─────────────────────────────────────────────
+  const playerC = Math.round(player.x / TILE_SIZE - 0.5);
+  const playerR = Math.round(player.y / TILE_SIZE - 0.5);
+  const dToPac = Math.abs(c - playerC) + Math.abs(r - playerR);
+
+  // Trigger alleen vanuit SCATTER
+  if (g.mode === GHOST_MODE_SCATTER && dToPac <= SCATTER_ALERT_RADIUS) {
+    g.mode = GHOST_MODE_CHASE;
+    g.scatterAlertUntil = gameTime + SCATTER_ALERT_CHASE_MS;
+  }
+
+  // Terug naar SCATTER na 5s én als Pac-Man ver genoeg is
+  if (g.mode === GHOST_MODE_CHASE && g.scatterAlertUntil != null) {
+    const timeUp = gameTime >= g.scatterAlertUntil;
+    const farEnough = dToPac >= SCATTER_CALM_RADIUS;
+
+    if (timeUp && farEnough) {
+      g.mode = GHOST_MODE_SCATTER;
+      g.scatterAlertUntil = null;
+    }
+  }
 
   // Nieuw: check of huidige richting geblokkeerd is
   const blocked = !canMove(g, g.dir);
@@ -3369,8 +3531,7 @@ function updateOneGhost(g) {
 
   // EATEN-timer + vooruitgang naar pen bijhouden (voor slimme safety reset)
   if (g.mode === GHOST_MODE_EATEN && penTile) {
-    const tileDistNow =
-      Math.abs(c - penTile.c) + Math.abs(r - penTile.r); // Manhattan afstand
+    const tileDistNow = Math.abs(c - penTile.c) + Math.abs(r - penTile.r); // Manhattan afstand
 
     if (g.eatenStartTime == null) {
       // Eerste frame dat hij ogen is
@@ -3409,7 +3570,7 @@ function updateOneGhost(g) {
     // Alle opties behalve reverse
     const nonRev = dirs.filter(d => !(d.x === -g.dir.x && d.y === -g.dir.y));
 
-function canStep(d) {
+    function canStep(d) {
       const nc = c + d.x;
       const nr = r + d.y;
 
@@ -3444,6 +3605,19 @@ function canStep(d) {
     // Als die leeg zijn → probeer alle richtingen
     if (opts.length === 0) opts = dirs.filter(canStep);
 
+    // C: vermijd tiles waar andere ghosts (bijna) zitten -> minder treintjes
+    opts = opts.filter(d => {
+      const nc = c + d.x;
+      const nr = r + d.y;
+      return !isTooCloseToOtherGhost(nc, nr, g);
+    });
+
+    // Als spacing alles wegfiltert, val terug op originele opts (anders kan hij vastlopen)
+    if (opts.length === 0) {
+      opts = nonRev.filter(canStep);
+      if (opts.length === 0) opts = dirs.filter(canStep);
+    }
+
     if (opts.length > 0) {
       let chosen = null;
 
@@ -3456,21 +3630,17 @@ function canStep(d) {
       else if (
         g.targetTile &&
         (g.mode === GHOST_MODE_SCATTER ||
-         g.mode === GHOST_MODE_CHASE   ||
+         g.mode === GHOST_MODE_CHASE ||
          g.mode === GHOST_MODE_EATEN)
       ) {
         const tx = g.targetTile.c;
         const ty = g.targetTile.r;
 
-        const prefOrder = [
-          { x: 0,  y: -1 },  // up
-          { x: -1, y: 0 },   // left
-          { x: 0,  y: 1 },   // down
-          { x: 1,  y: 0 },   // right
-        ];
+        // A: per ghost andere pref order + random tie-break bij gelijke beste opties
+        const prefOrder = getGhostPrefOrder(g);
 
-        let best = null;
         let bestDist2 = Infinity;
+        let bestOptions = [];
 
         for (const pref of prefOrder) {
           const option = opts.find(o => o.x === pref.x && o.y === pref.y);
@@ -3484,12 +3654,23 @@ function canStep(d) {
 
           if (d2 < bestDist2) {
             bestDist2 = d2;
-            best = option;
+            bestOptions = [option];
+          } else if (d2 === bestDist2) {
+            bestOptions.push(option);
           }
         }
 
-        chosen = best || opts[0];
-      }
+        if (bestOptions.length > 0) {
+          chosen = bestOptions[Math.floor(Math.random() * bestOptions.length)];
+
+          // mini-chaos om perfecte synchronisatie te breken
+          if (Math.random() < 0.05) {
+            chosen = opts[Math.floor(Math.random() * opts.length)];
+          }
+        } else {
+          chosen = opts[0];
+        }
+      } // sluit else-if target-blok
 
       // 3) FALLBACK (IN_PEN / LEAVING zonder target) → random
       else {
@@ -3497,6 +3678,7 @@ function canStep(d) {
       }
 
       g.dir = chosen;
+
       // bij het kiezen van een nieuwe richting zetten we hem netjes op tile-center
       g.x = mid.x;
       g.y = mid.y;
@@ -3540,7 +3722,6 @@ function canStep(d) {
       playElectricShock();
       spawnElectricSparks(g.x, g.y);
     }
-
   } else if (!inElectricZone && g.wasInElectricZone) {
     g.wasInElectricZone = false;
   }
@@ -3569,12 +3750,11 @@ function canStep(d) {
       g.x = penCenter.x;
       g.y = penCenter.y;
 
-      g.mode         = GHOST_MODE_SCATTER;
-      g.speed        = SPEED_CONFIG.ghostSpeed;
-      g.released     = false;
+      g.mode = GHOST_MODE_SCATTER;
+      g.speed = SPEED_CONFIG.ghostSpeed;
+      g.released = false;
       g.hasExitedBox = false;
       g.hasExitedHouse = false;
-
 
       if (g.scatterTile) {
         g.targetTile = { c: g.scatterTile.c, r: g.scatterTile.r };
@@ -3590,6 +3770,7 @@ function canStep(d) {
   if (g.mode === GHOST_MODE_EATEN && penTile) {
     const tileDist =
       Math.abs(c - penTile.c) + Math.abs(r - penTile.r);
+
     console.log(
       "👀 EATEN",
       g.color,
@@ -3599,7 +3780,6 @@ function canStep(d) {
     );
   }
 }
-
 
 
 function tryAwardExtraLife(pointsJustCollected) {
