@@ -855,6 +855,122 @@ const cherryIconConfig = {
 };
 
 
+// ---------------------------------------------------------------------------
+// 👻⚡ SPEED BOOST ("<<>>" teken) — LOGICA (STAP 4)
+// - Pacman of Ghost die over booster gaat => 3s sneller (instelbaar)
+// - Werkt ook tijdens vuurmode (frightened): na boost terug naar frightened speed
+// - Booster is NIET "op" en blijft altijd zichtbaar (respawn bij reset via STAP 2/3)
+// ---------------------------------------------------------------------------
+
+// ✅ instelbaar (default)
+let SPEEDBOOST_DURATION_MS = 3000;  // 3 seconden
+let SPEEDBOOST_MULTIPLIER  = 1.60;  // 60% sneller
+
+// Deze array vullen we per level (STAP 5/6). Voor nu bestaat hij alvast.
+let speedBoosters = []; // [{ c, r, durationMs?, mult? }, ...]
+
+// Timers per entity
+let pacSpeedBoostTimer = 0;
+
+function startPacSpeedBoost(durationMs, mult) {
+  pacSpeedBoostTimer = Math.max(pacSpeedBoostTimer, durationMs);
+  // meteen speed toepassen
+  player.speed = SPEED_CONFIG.playerSpeed * mult;
+}
+
+function startGhostSpeedBoost(g, durationMs, mult) {
+  g.speedBoostTimer = Math.max(g.speedBoostTimer || 0, durationMs);
+  g.speedBoostMult  = mult;
+  // meteen speed toepassen
+  applyGhostSpeedWithBoost(g);
+}
+
+function getGhostBaseSpeed(g) {
+  // Base speed afhankelijk van mode (BELANGRIJK voor vuurmode / ogen)
+  if (g.mode === GHOST_MODE_EATEN) return SPEED_CONFIG.ghostEyesSpeed;
+  if (g.mode === GHOST_MODE_FRIGHTENED) return SPEED_CONFIG.ghostFrightSpeed;
+  return SPEED_CONFIG.ghostSpeed;
+}
+
+function applyGhostSpeedWithBoost(g) {
+  const base = getGhostBaseSpeed(g);
+  const t = g.speedBoostTimer || 0;
+  const mult = (t > 0) ? (g.speedBoostMult || SPEEDBOOST_MULTIPLIER) : 1;
+  g.speed = base * mult;
+}
+
+function updateSpeedBoosts(deltaMs) {
+  // ── Pacman timer
+  if (pacSpeedBoostTimer > 0) {
+    pacSpeedBoostTimer -= deltaMs;
+    if (pacSpeedBoostTimer <= 0) {
+      pacSpeedBoostTimer = 0;
+      // terug naar normale player speed (niet beïnvloed door vuurmode)
+      player.speed = SPEED_CONFIG.playerSpeed;
+    } else {
+      // terwijl actief: blijf boosted
+      player.speed = SPEED_CONFIG.playerSpeed * SPEEDBOOST_MULTIPLIER;
+    }
+  }
+
+  // ── Ghost timers
+  if (Array.isArray(ghosts)) {
+    ghosts.forEach(g => {
+      if (!g) return;
+
+      if (g.speedBoostTimer > 0) {
+        g.speedBoostTimer -= deltaMs;
+
+        if (g.speedBoostTimer <= 0) {
+          g.speedBoostTimer = 0;
+          // Belangrijk: terug naar base speed van hun HUIDIGE mode (frightened blijft frightened!)
+          applyGhostSpeedWithBoost(g); // mult wordt dan 1
+        } else {
+          // nog actief => boosted speed
+          applyGhostSpeedWithBoost(g);
+        }
+      }
+    });
+  }
+}
+
+function checkSpeedBoostCollisions() {
+  if (!Array.isArray(speedBoosters) || speedBoosters.length === 0) return;
+
+  const hitRadius = TILE_SIZE * 0.45;
+
+  for (const b of speedBoosters) {
+    if (!b) continue;
+
+    const bx = tileCenter(b.c, b.r).x;
+    const by = tileCenter(b.c, b.r).y;
+
+    const durationMs = (typeof b.durationMs === "number") ? b.durationMs : SPEEDBOOST_DURATION_MS;
+    const mult       = (typeof b.mult === "number")       ? b.mult       : SPEEDBOOST_MULTIPLIER;
+
+    // ── Pacman overlap
+    const dp = Math.hypot(player.x - bx, player.y - by);
+    if (dp < hitRadius) {
+      startPacSpeedBoost(durationMs, mult);
+    }
+
+    // ── Ghost overlap
+    if (Array.isArray(ghosts)) {
+      for (const g of ghosts) {
+        if (!g) continue;
+
+        // ogen (EATEN) mogen ook boost krijgen als jij dat wilt:
+        // als je dat NIET wilt, zet dan: if (g.mode === GHOST_MODE_EATEN) continue;
+        const dg = Math.hypot(g.x - bx, g.y - by);
+        if (dg < hitRadius) {
+          startGhostSpeedBoost(g, durationMs, mult);
+        }
+      }
+    }
+  }
+}
+
+
 // ─────────────────────────────────────────────
 // ELECTRIC BARRIER HIT (ghost → sound + sparks)
 // ─────────────────────────────────────────────
