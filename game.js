@@ -467,14 +467,15 @@ speedArrowSound.loop = false;
 speedArrowSound.volume = 0.8;
 
 // Per level plaatsing (tile coördinaten: c=kolom, r=rij)
+// Per level plaatsing (tile coördinaten: c=kolom, r=rij)
 const SPEED_ARROWS_BY_LEVEL = {
   1: [
-    { c: 12, r: 17, dir: { x: 1, y: 0 } },  // →
-    { c: 6,  r: 23, dir: { x: 0, y: -1 } }, // ↑
+    { c: 18, r: 17, dir: { x: 1, y: 0 } },  // → (was 12,17 maar dat is muur)
+    { c: 6,  r: 23, dir: { x: 0, y: -1 } }, // ↑ (deze was al goed)
   ],
   2: [
-    { c: 1,  r: 14, dir: { x: -1, y: 0 } }, // ←
-    { c: 26, r: 14, dir: { x: 1, y: 0 } },  // →
+    { c: 6,  r: 14, dir: { x: -1, y: 0 } }, // ← (was 1,14 maar dat is muur)
+    { c: 21, r: 14, dir: { x: 1, y: 0 } },  // → (was 26,14 maar dat is muur)
   ],
   3: [],
   4: []
