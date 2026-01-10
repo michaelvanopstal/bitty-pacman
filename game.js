@@ -5142,7 +5142,8 @@ function drawBoosterSymbol(x, y) {
 }
 
 function drawGhostBoosters() {
-  if (!Array.isArray(ghostBoosters) || ghostBoosters.length === 0) return;
+  if (!Array.isArray(speedBoosters) || speedBoosters.length === 0) return;
+
 
   ghostBoosters.forEach(b => {
     const x = b.c * TILE_SIZE + TILE_SIZE / 2;
