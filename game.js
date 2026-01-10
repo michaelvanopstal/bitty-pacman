@@ -376,6 +376,36 @@ const GHOST_MODE_SEQUENCE_L3 = [
 ];
 
 
+
+// ─────────────────────────────────────────────
+// GHOST BOOSTER (<<>>) CONFIG
+// ─────────────────────────────────────────────
+
+// Instelbaar: duur + snelheid (multiplier)
+const BOOST_CONFIG = {
+  player: { durationMs: 3000, mult: 1.25 }, // Pacman boost
+  ghost:  { durationMs: 3000, mult: 1.35 }  // Ghost boost
+};
+
+// Plaatsing per level (jij zet hier de tiles waar je ze wil hebben)
+// c = column (x tile), r = row (y tile)
+const GHOST_BOOSTERS_BY_LEVEL = {
+  1: [
+    // voorbeeld:
+    // { c: 13, r: 11 },
+    // { c: 1,  r: 14 }
+  ],
+  2: [
+    // { c: 10, r: 9 }
+  ],
+  3: [],
+  4: []
+};
+
+// Runtime lijst met boosters die actief zijn in het huidige level
+let ghostBoosters = [];
+
+
 function getGhostModeSequenceForLevel() {
   if (currentLevel === 3 || currentLevel === 4) return GHOST_MODE_SEQUENCE_L3;
   if (currentLevel === 2) return GHOST_MODE_SEQUENCE_L2;
