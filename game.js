@@ -455,6 +455,34 @@ function applyFrightConfigForLevel(level = currentLevel) {
   FRIGHT_FLASH_MS    = flashMs;
 }
 
+let SPEED_ARROW_DURATION_MS = 3000;   // 3 seconden (instelbaar)
+let SPEED_ARROW_MULTIPLIER  = 1.6;    // snelheid factor (instelbaar)
+
+// Optioneel: aparte multiplier voor ghosts
+let SPEED_ARROW_GHOST_MULTIPLIER = 1.6;
+
+// Sound (zet je mp3 in dezelfde map als game.js)
+const speedArrowSound = new Audio("speedboost.mp3");
+speedArrowSound.loop = false;
+speedArrowSound.volume = 0.8;
+
+// Per level plaatsing (tile coördinaten: c=kolom, r=rij)
+const SPEED_ARROWS_BY_LEVEL = {
+  1: [
+    { c: 12, r: 17, dir: { x: 1, y: 0 } },  // →
+    { c: 6,  r: 23, dir: { x: 0, y: -1 } }, // ↑
+  ],
+  2: [
+    { c: 1,  r: 14, dir: { x: -1, y: 0 } }, // ←
+    { c: 26, r: 14, dir: { x: 1, y: 0 } },  // →
+  ],
+  3: [],
+  4: []
+};
+
+// runtime cache
+let speedArrows = [];
+
 
 // ───────────────────────────────────────────────
 // BITTY OVERLAY CONFIG
@@ -1190,6 +1218,81 @@ async function loadHighscoresFromServer() {
 }
 
 
+function tileKey(c, r) {
+  return `${c},${r}`;
+}
+
+function getEntityTile(ent) {
+  // zelfde rounding stijl als jij vaker gebruikt
+  const c = Math.round(ent.x / TILE_SIZE - 0.5);
+  const r = Math.round(ent.y / TILE_SIZE - 0.5);
+  return { c, r };
+}
+
+function isOnSpeedArrowTile(ent) {
+  const { c, r } = getEntityTile(ent);
+  for (let i = 0; i < speedArrows.length; i++) {
+    const a = speedArrows[i];
+    if (a.c === c && a.r === r) return a;
+  }
+  return null;
+}
+
+function triggerSpeedBoost(ent, nowMs, mult, durationMs) {
+  // base speed onthouden zodat we netjes terug kunnen
+  if (ent.baseSpeed == null) ent.baseSpeed = ent.speed;
+
+  ent.speedBoostUntil = nowMs + durationMs;
+  ent.speedBoostMult  = mult;
+
+  // korte aura burst
+  ent.speedAuraMs = 250; // kort effect bij activeren
+
+  // sound
+  try {
+    speedArrowSound.currentTime = 0;
+    speedArrowSound.play().catch(() => {});
+  } catch (e) {}
+}
+
+function applySpeedBoostRuntime(ent, deltaMs, nowMs) {
+  // aura timer
+  if (ent.speedAuraMs && ent.speedAuraMs > 0) {
+    ent.speedAuraMs -= deltaMs;
+    if (ent.speedAuraMs < 0) ent.speedAuraMs = 0;
+  }
+
+  // boost actief?
+  if (ent.speedBoostUntil && nowMs < ent.speedBoostUntil) {
+    const base = (ent.baseSpeed != null) ? ent.baseSpeed : ent.speed;
+    ent.speed = base * (ent.speedBoostMult || 1);
+  } else {
+    // terug naar normaal
+    if (ent.baseSpeed != null) ent.speed = ent.baseSpeed;
+  }
+}
+function handleSpeedArrowContact(ent, nowMs) {
+  const arrow = isOnSpeedArrowTile(ent);
+  if (!arrow) {
+    ent.lastSpeedArrowKey = null;
+    return;
+  }
+
+  const key = tileKey(arrow.c, arrow.r);
+
+  // alleen triggeren als je NET op die tile komt
+  if (ent.lastSpeedArrowKey === key) return;
+  ent.lastSpeedArrowKey = key;
+
+  // multiplier (player vs ghost)
+  const mult = (ent === player)
+    ? SPEED_ARROW_MULTIPLIER
+    : SPEED_ARROW_GHOST_MULTIPLIER;
+
+  triggerSpeedBoost(ent, nowMs, mult, SPEED_ARROW_DURATION_MS);
+}
+
+
 function renderMobileHighscoreList() {
   const listEl = document.getElementById("highscoreList");
   if (!listEl) return;
@@ -1448,9 +1551,23 @@ function applySpeedsForLevel() {
           break;
 
         case GHOST_MODE_EATEN:
-          g.speed = SPEED_CONFIG.ghostEyesSpeed; // blijft je vaste oogjes speed
+          g.speed = SPEED_CONFIG.ghostEyesSpeed; // vaste oogjes speed
           break;
       }
+    });
+  }
+
+  // ─────────────────────────────────────────────
+  // 🆕 STAP 4B — BASE SPEED SYNCHRONISEREN
+  // (nodig voor speed-arrow boosts)
+  // ─────────────────────────────────────────────
+  if (player) {
+    player.baseSpeed = player.speed;
+  }
+
+  if (Array.isArray(ghosts)) {
+    ghosts.forEach(g => {
+      g.baseSpeed = g.speed;
     });
   }
 
@@ -1471,16 +1588,15 @@ function applySpeedsForLevel() {
       CLYDE_SCATTER_DISTANCE_TILES = 4.0;
     }
 
-    // ✅ alleen herberekenen als tiles bestaat
     if (typeof CLYDE_SCATTER_DISTANCE2 !== "undefined") {
       CLYDE_SCATTER_DISTANCE2 =
         CLYDE_SCATTER_DISTANCE_TILES * CLYDE_SCATTER_DISTANCE_TILES;
     }
   }
 
-applyFrightConfigForLevel();
+  applyFrightConfigForLevel();
+}
 
-} 
 
 // ---------------------------------------------------------------------------
 // MAZE helpers
@@ -2544,6 +2660,17 @@ if (
 
   spikyBall = null;
 }
+
+
+function loadSpeedArrowsForLevel(level) {
+  speedArrows = (SPEED_ARROWS_BY_LEVEL[level] || []).map(a => ({
+    c: a.c,
+    r: a.r,
+    dir: { x: a.dir.x, y: a.dir.y }
+  }));
+}
+
+
 function resetEntities() {
   // ─────────────────────────────────────────────
   // PACMAN DEATH STATE RESETTEN
@@ -3196,9 +3323,10 @@ function updatePlayer() {
 }
 
 
-
 function onAllDotsCleared() {
   console.log("✨ All dots cleared!");
+
+  // Level verhogen + label
   if (currentLevel === 1) {
     currentLevel = 2;
     readyLabel = "LEVEL 2";
@@ -3213,11 +3341,13 @@ function onAllDotsCleared() {
     return;
   }
 
+  // 🆕 SPEED ARROWS laden voor nieuw level
+  loadSpeedArrowsForLevel(currentLevel);
 
-  // Nieuwe speeds instellen
+  // Nieuwe speeds instellen (player + ghosts)
   applySpeedsForLevel();
 
-  // Alles resetten voor nieuw level (speler, ghosts, dots, fruit, cannons, etc.)
+  // Alles resetten voor nieuw level
   resetEntities();
 
   // Intro: in de stijl van GET READY
@@ -3229,6 +3359,7 @@ function onAllDotsCleared() {
   readySound.currentTime = 0;
   readySound.play().catch(() => {});
 }
+
 
 function startFourGhostBonus(triggerX, triggerY) {
   // 1) WOW overlay activeren
@@ -4453,6 +4584,11 @@ function drawGhosts() {
   const size = TILE_SIZE * ghostScale;
 
   for (const g of ghosts) {
+
+    // ⚡ SPEED AURA (STAP 5B)
+    // → altijd EERST tekenen, zodat hij achter de ghost zit
+    drawSpeedAura(g);
+
     ctx.save();
     ctx.translate(g.x, g.y);
 
@@ -4500,7 +4636,6 @@ function drawGhosts() {
     ctx.restore();
   }
 }
-
 
 
 
@@ -4915,27 +5050,26 @@ function drawLevel4DarknessMask() {
 
 
 function drawPlayer() {
+  // ⚡ SPEED AURA (STAP 5B)
+  drawSpeedAura(player);
+
   const size   = TILE_SIZE * pacmanScale;
   const radius = size / 2;
 
-   if (isDying) {
+  if (isDying) {
     drawPacmanDeathFrame();
     return;
   }
 
   // ░░ Beweegt hij? ░░
-  // Gebruik de echte bewegings-flag uit updatePlayer()
   const moving = player.isMoving;
 
   // ░░ Mond-animatie ░░
-  // Update mouthPhase ALLEEN als hij beweegt of eet.
-  // Als hij stil staat en niet eet, blijft mouthPhase gelijk
-  // → mond blijft in de laatste frame-stand.
   if (moving || eatingTimer > 0) {
     mouthPhase += mouthSpeed;
   }
 
-  // Mond-open (0..1) op basis van de huidige mouthPhase
+  // Mond-open (0..1)
   const mouthOpen = (Math.sin(mouthPhase) + 1) / 2;
 
   // ░░ Richting → rij in sprite sheet ░░
@@ -4948,19 +5082,16 @@ function drawPlayer() {
   } else if (player.dir.y > 0) {
     player.facingRow = PACMAN_DIRECTION_ROW.down;
   }
-  // als dir = (0,0) blijft facingRow wat hij was
 
-  // ░░ Mond-open → kolom in sprite sheet (0..2) ░░
+  // ░░ Mond-open → kolom in sprite sheet ░░
   let frameCol = 0;
-  if (mouthOpen > 0.66)      frameCol = 2; // helemaal open
-  else if (mouthOpen > 0.33) frameCol = 1; // half open
-  else                       frameCol = 0; // dicht / klein
+  if (mouthOpen > 0.66)      frameCol = 2;
+  else if (mouthOpen > 0.33) frameCol = 1;
 
   ctx.save();
   ctx.translate(player.x, player.y);
 
   if (playerLoaded) {
-    // Tekenen vanaf de sprite sheet
     const sx = frameCol * PACMAN_SRC_WIDTH;
     const sy = player.facingRow * PACMAN_SRC_HEIGHT;
 
@@ -4970,7 +5101,6 @@ function drawPlayer() {
       -size / 2, -size / 2, size, size
     );
   } else {
-    // Fallback: oude cirkel + mond-wedge
     const maxMouth = Math.PI / 3;
     const mouthAngle = maxMouth * mouthOpen;
 
@@ -4990,6 +5120,7 @@ function drawPlayer() {
 
   ctx.restore();
 }
+
 
 function fitTextToWidth(ctx, text, maxWidth, baseFontPx, fontFamily){
   let size = baseFontPx;
@@ -5151,6 +5282,42 @@ function drawScaledBittyHighscoreHUD(hudCtx, cfg){
   hudCtx.restore();
 }
 
+
+function drawSpeedAura(ent) {
+  const now = gameTime;
+  const active = ent.speedBoostUntil && now < ent.speedBoostUntil;
+  const burst  = ent.speedAuraMs && ent.speedAuraMs > 0;
+
+  if (!active && !burst) return;
+
+  const x = ent.x;
+  const y = ent.y;
+  const r = TILE_SIZE * 0.55;
+
+  ctx.save();
+
+  // glow
+  ctx.globalAlpha = active ? 0.35 : 0.25;
+  ctx.fillStyle = "#7fe6ff";
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // witte ring “speed flash”
+  if (burst) {
+    const t = ent.speedAuraMs / 250; // 1..0
+    ctx.globalAlpha = 0.9 * t;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = Math.max(2, TILE_SIZE * 0.10);
+    ctx.beginPath();
+    ctx.arc(x, y, r + (1 - t) * TILE_SIZE * 0.35, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+
 // ---------------------------------------------------------------------------
 // HIGHSCORE PANEL RENDER (Top 10 inside)
 // ---------------------------------------------------------------------------
@@ -5162,6 +5329,88 @@ function formatScore(n) {
 function formatTimeMs(ms) {
   return formatRunTime(ms || 0); // jij hebt formatRunTime al in game.js :contentReference[oaicite:7]{index=7}
 }
+
+function drawSpeedArrowTile(a) {
+  const x = a.c * TILE_SIZE + TILE_SIZE / 2;
+  const y = a.r * TILE_SIZE + TILE_SIZE / 2;
+
+  const w = TILE_SIZE * 0.72;
+  const h = TILE_SIZE * 0.72;
+
+  // kleuren (mooi blauw + wit randje)
+  const fill = "#0aa6ff";
+  const stroke = "#ffffff";
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // rotatie op basis van dir
+  let ang = 0;
+  if (a.dir.x === 1) ang = 0;
+  else if (a.dir.x === -1) ang = Math.PI;
+  else if (a.dir.y === -1) ang = -Math.PI / 2;
+  else if (a.dir.y === 1) ang = Math.PI / 2;
+
+  ctx.rotate(ang);
+
+  // achtergrond “badge”
+  ctx.globalAlpha = 0.95;
+  ctx.lineWidth = Math.max(2, TILE_SIZE * 0.10);
+  ctx.fillStyle = fill;
+  ctx.strokeStyle = stroke;
+
+  const radius = TILE_SIZE * 0.18;
+
+  // rounded rect
+  ctx.beginPath();
+  const rx = -w / 2, ry = -h / 2;
+  ctx.moveTo(rx + radius, ry);
+  ctx.lineTo(rx + w - radius, ry);
+  ctx.quadraticCurveTo(rx + w, ry, rx + w, ry + radius);
+  ctx.lineTo(rx + w, ry + h - radius);
+  ctx.quadraticCurveTo(rx + w, ry + h, rx + w - radius, ry + h);
+  ctx.lineTo(rx + radius, ry + h);
+  ctx.quadraticCurveTo(rx, ry + h, rx, ry + h - radius);
+  ctx.lineTo(rx, ry + radius);
+  ctx.quadraticCurveTo(rx, ry, rx + radius, ry);
+  ctx.closePath();
+
+  ctx.fill();
+  ctx.stroke();
+
+  // pijl vorm (<<<>>> vibe, maar dan als echte arrow)
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  const shaftL = TILE_SIZE * 0.18;
+  const headL  = TILE_SIZE * 0.20;
+  const thick  = TILE_SIZE * 0.10;
+
+  // shaft
+  ctx.moveTo(-shaftL, -thick);
+  ctx.lineTo(shaftL, -thick);
+  ctx.lineTo(shaftL, -headL);
+  // head
+  ctx.lineTo(shaftL + headL, 0);
+  ctx.lineTo(shaftL, headL);
+  ctx.lineTo(shaftL, thick);
+  ctx.lineTo(-shaftL, thick);
+  ctx.closePath();
+
+  // wit pijl-icoon met blauwe rand (net pop)
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, TILE_SIZE * 0.06);
+  ctx.strokeStyle = "#0077cc";
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawSpeedArrows() {
+  if (!speedArrows || speedArrows.length === 0) return;
+  for (const a of speedArrows) drawSpeedArrowTile(a);
+}
+
 
 
 function drawHighscoreRows(ctx, baseW, baseH, opts = {}) {
@@ -5842,17 +6091,14 @@ function loop() {
   if (gameRunning && !isDying) {
     gameTime += FRAME_TIME;
 
-    // ✅ run timer loopt alleen als hij gestart is
-if (timerRunning && roundStarted && !introActive && !gameOver) {
-  runTimeMs += FRAME_TIME;
-  updateTimeHud();
-}
-
+    if (timerRunning && roundStarted && !introActive && !gameOver) {
+      runTimeMs += FRAME_TIME;
+      updateTimeHud();
+    }
 
     powerDotPhase += POWER_DOT_BLINK_SPEED;
     coinPulsePhase += 0.04;
 
-    // --- FRIGHTENED TIMER UPDATE ---
     if (frightTimer > 0) {
       frightTimer -= FRAME_TIME;
 
@@ -5877,215 +6123,113 @@ if (timerRunning && roundStarted && !introActive && !gameOver) {
     updatePlayer();
     updateGhosts();
 
-       // ✅ SPIKY BALL UPDATE + GHOST COLLISION (LEVEL 3 + 4)
-    if (
-      typeof currentLevel !== "undefined" &&
-      (currentLevel === 3 || currentLevel === 4)
-    ) {
+    // ⚡ SPEED ARROW BOOSTS (STAP 4A)
+    handleSpeedArrowContact(player, gameTime);
+    applySpeedBoostRuntime(player, FRAME_TIME, gameTime);
+
+    for (const g of ghosts) {
+      handleSpeedArrowContact(g, gameTime);
+      applySpeedBoostRuntime(g, FRAME_TIME, gameTime);
+    }
+
+    if (currentLevel === 3 || currentLevel === 4) {
       updateSpikyBall?.();
       handleGhostSpikyBallCollision?.();
     }
 
-
     checkCollision();
     updateFloatingScores(FRAME_TIME);
 
-    // --- LEVEL 2 + 3 CANNONS UPDATE ---
     if (isAdvancedLevel() && typeof updateCannons === "function") {
       updateCannons(FRAME_TIME);
     }
 
-    // --- WOW 4-GHOST BONUS TIMER ---
     if (wowBonusActive) {
       wowBonusTimer -= FRAME_TIME;
-
       if (wowBonusTimer <= 0) {
         wowBonusTimer = 0;
         wowBonusActive = false;
-        if (typeof startCoinBonus === "function") startCoinBonus();
+        startCoinBonus?.();
       }
     }
 
-    // ✅ --- 1 UP POPUP TIMER (STAP 7) ---
     if (oneUpTextActive) {
       oneUpTimer -= FRAME_TIME;
-      if (oneUpTimer <= 0) {
-        oneUpTimer = 0;
-        oneUpTextActive = false;
-      }
+      if (oneUpTimer <= 0) oneUpTextActive = false;
     }
 
-    // --- COIN BONUS UPDATE ---
-    if (coinBonusActive && typeof updateCoins === "function") {
-      updateCoins(FRAME_TIME);
-    }
+    if (coinBonusActive) updateCoins?.(FRAME_TIME);
 
     updateEyesSound?.();
     updateFrightSound?.();
     updateSirenSound?.();
-  
     updateElectricSparks(FRAME_TIME);
 
     frame++;
 
   } else if (isDying) {
-    // ─────────────────────────────────────────────
-    // DEATH ANIMATIE UPDATE
-    // ─────────────────────────────────────────────
     updateDeathAnimation?.(FRAME_TIME);
-
   } else {
-    // ─────────────────────────────────────────────
-    // GAME STIL → SOUNDS UIT
-    // ─────────────────────────────────────────────
-    if (eyesSoundPlaying) {
-      eyesSoundPlaying = false;
-      eyesSound.pause();
-      eyesSound.currentTime = 0;
-    }
-
-    if (ghostFireSoundPlaying) {
-      ghostFireSoundPlaying = false;
-      ghostFireSound.pause();
-      ghostFireSound.currentTime = 0;
-    }
-
     stopAllSirens?.();
   }
 
   // ─────────────────────────────────────────────
   // TEKEN-FASE
   // ─────────────────────────────────────────────
-
   drawMazeBackground();
-
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // ─────────────────────────────────────────────
-  // MAZE-LAYER (GESCHAALD)
-  // ─────────────────────────────────────────────
   ctx.save();
   ctx.translate(pathOffsetX, pathOffsetY);
   ctx.scale(pathScaleX, pathScaleY);
 
   drawDots();
 
-  // 🍒🍓🍌 FRUIT IN MAZE
+  // ⚡ SPEED ARROWS (BOOST TILES)
+  drawSpeedArrows();
+
   drawCherry?.();
   drawStrawberry?.();
   drawBanana?.();
 
-  // 🍐 Peer (LEVEL 3 ONLY)
-    // 🍐 Peer (LEVEL 3 + 4)
-  if (
-    typeof currentLevel !== "undefined" &&
-    (currentLevel === 3 || currentLevel === 4)
-  ) {
-    drawPear?.();
-  }
-
-
-  // ✅ Spiky rolling ball (LEVEL 3 + 4)
-  if (
-    typeof currentLevel !== "undefined" &&
-    (currentLevel === 3 || currentLevel === 4)
-  ) {
-    drawSpikyBall?.();
-  }
+  if (currentLevel === 3 || currentLevel === 4) drawPear?.();
+  if (currentLevel === 3 || currentLevel === 4) drawSpikyBall?.();
 
   drawPlayer();
   drawGhosts();
   drawElectricSparks();
-
   drawFloatingScores();
 
-  if (isAdvancedLevel()) {
-    drawCannonProjectiles?.();
-  }
-
-  if (coinBonusActive) {
-    drawCoins?.();
-  }
+  if (isAdvancedLevel()) drawCannonProjectiles?.();
+  if (coinBonusActive) drawCoins?.();
 
   drawWowBonusText?.();
   drawReadyText?.();
   drawOneUpText();
 
-  if (gameOver && !isDying) {
-    drawGameOverText?.();
-  }
+  if (gameOver && !isDying) drawGameOverText?.();
 
-  // klaar met geschaalde maze-tekeningen
   ctx.restore();
 
-  // 🌑 LEVEL 4 DARKNESS + AURA
   drawLevel4DarknessMask?.();
 
-  // ✨ BITTY ALTIJD HELDER ZICHTBAAR IN LEVEL 4
   if (currentLevel === 4) {
     ctx.save();
     ctx.translate(pathOffsetX, pathOffsetY);
     ctx.scale(pathScaleX, pathScaleY);
-
-    // Pacman opnieuw tekenen bovenop de darkness
     drawPlayer();
-
     ctx.restore();
   }
 
-  // 🔴 RODE GHOST-OGEN OVERLAY (LEVEL 4 + VUURMODE)
   drawLevel4FrightEyesOverlay?.();
-
   drawLevel4EatenEyesOverlay?.();
 
-
-  // ─────────────────────────────────────────────
-  // HUD-LAYER (NIET GESCHAALD)
-  // ─────────────────────────────────────────────
-  drawCherryIcon?.();
-  drawStrawberryIcon?.();
-  drawBananaIcon?.();
-
-
-// 🍐 Peer HUD (altijd zichtbaar)
-if (typeof drawPearIcon === "function") {
-  drawPearIcon();
-}
-
-// 🟦 Bitty Bonus HUD
-if (typeof drawBittyBonusIcon === "function") {
-  drawBittyBonusIcon();
-}
-
-// ✅ Cannon HUD (level 2 + 3)
-if (isAdvancedLevel()) {
-  drawCannonsHUD?.();
-}
-
-drawElectricBarrierOverlay();
-
-
-
-if (hudCtx) {
-
-  // altijd wissen
-  hudCtx.clearRect(0, 0, hudW, hudH);
-
-  // ❌ DESKTOP highscore HUD — NOOIT op mobiel
-  if (highscoreConfig.enabled && !isMobileLayout) {
-    drawScaledBittyHighscoreHUD(hudCtx, highscoreConfig);
-  }
-
-  // ✅ PACMAN LIVES — ALTIJD (desktop + mobiel)
   drawLifeIcons();
+  drawElectricBarrierOverlay();
+
+  loopRafId = requestAnimationFrame(loop);
 }
-
-loopRafId = requestAnimationFrame(loop);
-
-}
-
-
 
 function startNewGame() {
   score = 0;
@@ -6096,6 +6240,9 @@ function startNewGame() {
   // Nieuwe game begint altijd op level 1
   currentLevel = 1;
   readyLabel   = "GET READY!";
+
+  // 🆕 SPEED ARROWS laden voor level 1
+  loadSpeedArrowsForLevel(currentLevel);
 
   // Snelheden terug naar level 1
   if (typeof applySpeedsForLevel === "function") {
@@ -6222,26 +6369,6 @@ function startNewGame() {
   startIntro();
 }
 
-
-
-// Eerste init
-resetEntities();
-initPlayerCard();
-updateBittyPanel();   // ⬅️ overlay direct goed zetten
-
-// ✅ Highscores: direct lokaal laden + tonen, daarna server sync
-loadHighscoresFromLocal();
-renderMobileHighscoreList();
-loadHighscoresFromServer();
-
-// ✅ Mobile: eerst login verplicht, pas daarna intro starten
-if (isMobileLayout && !(playerProfile && playerProfile.name)) {
-  pendingStartAfterLogin = true;
-  showMobileLoginModal();
-  // geen startIntro hier
-} else {
-  startIntro();
-}
 
 loop();
 
