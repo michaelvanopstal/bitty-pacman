@@ -5282,40 +5282,41 @@ function drawScaledBittyHighscoreHUD(hudCtx, cfg){
   hudCtx.restore();
 }
 
-
 function drawSpeedAura(ent) {
-  const now = gameTime;
-  const active = ent.speedBoostUntil && now < ent.speedBoostUntil;
-  const burst  = ent.speedAuraMs && ent.speedAuraMs > 0;
-
-  if (!active && !burst) return;
+  // Alleen korte burst tonen (geen permanente glow)
+  const burst = ent.speedAuraMs && ent.speedAuraMs > 0;
+  if (!burst) return;
 
   const x = ent.x;
   const y = ent.y;
-  const r = TILE_SIZE * 0.55;
+
+  // iets kleiner, minder “vloer-cirkel”
+  const r = TILE_SIZE * 0.42;
 
   ctx.save();
 
-  // glow
-  ctx.globalAlpha = active ? 0.35 : 0.25;
-  ctx.fillStyle = "#7fe6ff";
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-
   // witte ring “speed flash”
-  if (burst) {
-    const t = ent.speedAuraMs / 250; // 1..0
-    ctx.globalAlpha = 0.9 * t;
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = Math.max(2, TILE_SIZE * 0.10);
-    ctx.beginPath();
-    ctx.arc(x, y, r + (1 - t) * TILE_SIZE * 0.35, 0, Math.PI * 2);
-    ctx.stroke();
-  }
+  const t = ent.speedAuraMs / 250; // 1..0
+  ctx.globalAlpha = 0.9 * t;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = Math.max(2, TILE_SIZE * 0.10);
+
+  ctx.beginPath();
+  ctx.arc(x, y, r + (1 - t) * TILE_SIZE * 0.28, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // heel subtiel blauw randje (kort)
+  ctx.globalAlpha = 0.35 * t;
+  ctx.strokeStyle = "#7fe6ff";
+  ctx.lineWidth = Math.max(1, TILE_SIZE * 0.06);
+
+  ctx.beginPath();
+  ctx.arc(x, y, r + (1 - t) * TILE_SIZE * 0.18, 0, Math.PI * 2);
+  ctx.stroke();
 
   ctx.restore();
 }
+
 
 
 // ---------------------------------------------------------------------------
