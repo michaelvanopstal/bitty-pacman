@@ -6091,6 +6091,7 @@ function loop() {
   if (gameRunning && !isDying) {
     gameTime += FRAME_TIME;
 
+    // ✅ run timer loopt alleen als hij gestart is
     if (timerRunning && roundStarted && !introActive && !gameOver) {
       runTimeMs += FRAME_TIME;
       updateTimeHud();
@@ -6099,6 +6100,7 @@ function loop() {
     powerDotPhase += POWER_DOT_BLINK_SPEED;
     coinPulsePhase += 0.04;
 
+    // --- FRIGHTENED TIMER UPDATE ---
     if (frightTimer > 0) {
       frightTimer -= FRAME_TIME;
 
@@ -6123,7 +6125,9 @@ function loop() {
     updatePlayer();
     updateGhosts();
 
-    // ⚡ SPEED ARROW BOOSTS (STAP 4A)
+    // ─────────────────────────────────────────────
+    // 🆕 SPEED ARROW BOOSTS (STAP 4A)
+    // ─────────────────────────────────────────────
     handleSpeedArrowContact(player, gameTime);
     applySpeedBoostRuntime(player, FRAME_TIME, gameTime);
 
@@ -6132,7 +6136,11 @@ function loop() {
       applySpeedBoostRuntime(g, FRAME_TIME, gameTime);
     }
 
-    if (currentLevel === 3 || currentLevel === 4) {
+    // ✅ SPIKY BALL UPDATE + GHOST COLLISION (LEVEL 3 + 4)
+    if (
+      typeof currentLevel !== "undefined" &&
+      (currentLevel === 3 || currentLevel === 4)
+    ) {
       updateSpikyBall?.();
       handleGhostSpikyBallCollision?.();
     }
@@ -6140,36 +6148,66 @@ function loop() {
     checkCollision();
     updateFloatingScores(FRAME_TIME);
 
+    // --- LEVEL 2 + 3 CANNONS UPDATE ---
     if (isAdvancedLevel() && typeof updateCannons === "function") {
       updateCannons(FRAME_TIME);
     }
 
+    // --- WOW 4-GHOST BONUS TIMER ---
     if (wowBonusActive) {
       wowBonusTimer -= FRAME_TIME;
+
       if (wowBonusTimer <= 0) {
         wowBonusTimer = 0;
         wowBonusActive = false;
-        startCoinBonus?.();
+        if (typeof startCoinBonus === "function") startCoinBonus();
       }
     }
 
+    // ✅ --- 1 UP POPUP TIMER (STAP 7) ---
     if (oneUpTextActive) {
       oneUpTimer -= FRAME_TIME;
-      if (oneUpTimer <= 0) oneUpTextActive = false;
+      if (oneUpTimer <= 0) {
+        oneUpTimer = 0;
+        oneUpTextActive = false;
+      }
     }
 
-    if (coinBonusActive) updateCoins?.(FRAME_TIME);
+    // --- COIN BONUS UPDATE ---
+    if (coinBonusActive && typeof updateCoins === "function") {
+      updateCoins(FRAME_TIME);
+    }
 
     updateEyesSound?.();
     updateFrightSound?.();
     updateSirenSound?.();
+
     updateElectricSparks(FRAME_TIME);
 
     frame++;
 
   } else if (isDying) {
+    // ─────────────────────────────────────────────
+    // DEATH ANIMATIE UPDATE
+    // ─────────────────────────────────────────────
     updateDeathAnimation?.(FRAME_TIME);
+
   } else {
+    // ─────────────────────────────────────────────
+    // GAME STIL → SOUNDS UIT
+    // ─────────────────────────────────────────────
+    if (eyesSoundPlaying) {
+      eyesSoundPlaying = false;
+      eyesSound.pause();
+      eyesSound.currentTime = 0;
+    }
+
+    if (ghostFireSoundPlaying) {
+      ghostFireSoundPlaying = false;
+      ghostFireSound.pause();
+      ghostFireSound.currentTime = 0;
+    }
+
     stopAllSirens?.();
   }
 
@@ -6177,59 +6215,128 @@ function loop() {
   // TEKEN-FASE
   // ─────────────────────────────────────────────
   drawMazeBackground();
+
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // ─────────────────────────────────────────────
+  // MAZE-LAYER (GESCHAALD)
+  // ─────────────────────────────────────────────
   ctx.save();
   ctx.translate(pathOffsetX, pathOffsetY);
   ctx.scale(pathScaleX, pathScaleY);
 
   drawDots();
 
-  // ⚡ SPEED ARROWS (BOOST TILES)
+  // 🆕 SPEED ARROWS TEKENEN (STAP 4A VISUAL)
   drawSpeedArrows();
 
+  // 🍒🍓🍌 FRUIT IN MAZE
   drawCherry?.();
   drawStrawberry?.();
   drawBanana?.();
 
-  if (currentLevel === 3 || currentLevel === 4) drawPear?.();
-  if (currentLevel === 3 || currentLevel === 4) drawSpikyBall?.();
+  // 🍐 Peer (LEVEL 3 + 4)
+  if (
+    typeof currentLevel !== "undefined" &&
+    (currentLevel === 3 || currentLevel === 4)
+  ) {
+    drawPear?.();
+  }
+
+  // ✅ Spiky rolling ball (LEVEL 3 + 4)
+  if (
+    typeof currentLevel !== "undefined" &&
+    (currentLevel === 3 || currentLevel === 4)
+  ) {
+    drawSpikyBall?.();
+  }
 
   drawPlayer();
   drawGhosts();
   drawElectricSparks();
+
   drawFloatingScores();
 
-  if (isAdvancedLevel()) drawCannonProjectiles?.();
-  if (coinBonusActive) drawCoins?.();
+  if (isAdvancedLevel()) {
+    drawCannonProjectiles?.();
+  }
+
+  if (coinBonusActive) {
+    drawCoins?.();
+  }
 
   drawWowBonusText?.();
   drawReadyText?.();
   drawOneUpText();
 
-  if (gameOver && !isDying) drawGameOverText?.();
+  if (gameOver && !isDying) {
+    drawGameOverText?.();
+  }
 
+  // klaar met geschaalde maze-tekeningen
   ctx.restore();
 
+  // 🌑 LEVEL 4 DARKNESS + AURA
   drawLevel4DarknessMask?.();
 
+  // ✨ BITTY ALTIJD HELDER ZICHTBAAR IN LEVEL 4
   if (currentLevel === 4) {
     ctx.save();
     ctx.translate(pathOffsetX, pathOffsetY);
     ctx.scale(pathScaleX, pathScaleY);
+
+    // Pacman opnieuw tekenen bovenop de darkness
     drawPlayer();
+
     ctx.restore();
   }
 
+  // 🔴 RODE GHOST-OGEN OVERLAY (LEVEL 4 + VUURMODE)
   drawLevel4FrightEyesOverlay?.();
   drawLevel4EatenEyesOverlay?.();
 
-  drawLifeIcons();
+  // ─────────────────────────────────────────────
+  // HUD-LAYER (NIET GESCHAALD)
+  // ─────────────────────────────────────────────
+  drawCherryIcon?.();
+  drawStrawberryIcon?.();
+  drawBananaIcon?.();
+
+  // 🍐 Peer HUD (altijd zichtbaar)
+  if (typeof drawPearIcon === "function") {
+    drawPearIcon();
+  }
+
+  // 🟦 Bitty Bonus HUD
+  if (typeof drawBittyBonusIcon === "function") {
+    drawBittyBonusIcon();
+  }
+
+  // ✅ Cannon HUD (level 2 + 3)
+  if (isAdvancedLevel()) {
+    drawCannonsHUD?.();
+  }
+
   drawElectricBarrierOverlay();
+
+  if (hudCtx) {
+    // altijd wissen
+    hudCtx.clearRect(0, 0, hudW, hudH);
+
+    // ❌ DESKTOP highscore HUD — NOOIT op mobiel
+    if (highscoreConfig.enabled && !isMobileLayout) {
+      drawScaledBittyHighscoreHUD(hudCtx, highscoreConfig);
+    }
+
+    // ✅ PACMAN LIVES — ALTIJD (desktop + mobiel)
+    drawLifeIcons();
+  }
 
   loopRafId = requestAnimationFrame(loop);
 }
+
+
 
 function startNewGame() {
   score = 0;
@@ -6370,6 +6477,27 @@ function startNewGame() {
 }
 
 
+
+// Eerste init
+resetEntities();
+initPlayerCard();
+updateBittyPanel();   // ⬅️ overlay direct goed zetten
+
+// ✅ Highscores: direct lokaal laden + tonen, daarna server sync
+loadHighscoresFromLocal();
+renderMobileHighscoreList();
+loadHighscoresFromServer();
+
+// ✅ Mobile: eerst login verplicht, pas daarna intro starten
+if (isMobileLayout && !(playerProfile && playerProfile.name)) {
+  pendingStartAfterLogin = true;
+  showMobileLoginModal();
+  // geen startIntro hier
+} else {
+  startIntro();
+}
+
 loop();
+
 
 
