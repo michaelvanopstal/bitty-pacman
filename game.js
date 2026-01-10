@@ -1397,6 +1397,23 @@ function submitRunToHighscores() {
   }
 }
 
+// ─────────────────────────────────────────────
+// Spawn ghost speed boosters for current level
+// ─────────────────────────────────────────────
+function spawnGhostBoostersForLevel(level = currentLevel) {
+  ghostBoosters = [];
+
+  const placements = GHOST_BOOSTERS_BY_LEVEL[level];
+  if (!placements) return;
+
+  placements.forEach(p => {
+    ghostBoosters.push({
+      c: p.c,
+      r: p.r
+    });
+  });
+}
+
 
 function getAvatarImage(dataUrl) {
   if (!dataUrl) return null;
