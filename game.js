@@ -6364,9 +6364,6 @@ function loop() {
 
   loopRafId = requestAnimationFrame(loop);
 }
-
-
-
 function startNewGame() {
   score = 0;
   lives = 3;
@@ -6378,7 +6375,7 @@ function startNewGame() {
   readyLabel   = "GET READY!";
 
   // 🆕 SPEED ARROWS laden voor level 1
-  loadSpeedArrowsForLevel(currentLevel);
+  loadSpeedArrowsForLevel?.(currentLevel);
 
   // Snelheden terug naar level 1
   if (typeof applySpeedsForLevel === "function") {
@@ -6499,9 +6496,39 @@ function startNewGame() {
     stopSiren();
   }
 
+  // ✅ Entities reset
   resetEntities();
-  messageEl.classList.add("hidden");
 
+  // ✅ Speed arrows opnieuw laden NA reset (zodat ze nooit “verdwijnen”)
+  loadSpeedArrowsForLevel?.(currentLevel);
+
+  // ✅ BOOST STATES HARD RESETTEN (voorkomt “blijvend supersnel” na game over/dood)
+  if (typeof clearSpeedBoost === "function") {
+    clearSpeedBoost(player);
+    if (Array.isArray(ghosts)) ghosts.forEach(g => clearSpeedBoost(g));
+  } else {
+    // fallback: als clearSpeedBoost nog niet bestaat
+    if (player) {
+      player.speedBoostUntil = 0;
+      player.speedBoostMult = 1;
+      player.speedAuraMs = 0;
+      player.lastSpeedArrowKey = null;
+    }
+    if (Array.isArray(ghosts)) {
+      ghosts.forEach(g => {
+        g.speedBoostUntil = 0;
+        g.speedBoostMult = 1;
+        g.speedAuraMs = 0;
+        g.lastSpeedArrowKey = null;
+      });
+    }
+  }
+
+  // ✅ baseSpeed sync (belangrijk voor correct terugvallen na boost)
+  if (player) player.baseSpeed = player.speed;
+  if (Array.isArray(ghosts)) ghosts.forEach(g => (g.baseSpeed = g.speed));
+
+  messageEl.classList.add("hidden");
   startIntro();
 }
 
@@ -6511,6 +6538,9 @@ function startNewGame() {
 resetEntities();
 initPlayerCard();
 updateBittyPanel();   // ⬅️ overlay direct goed zetten
+
+// ✅ Speed arrows init (zodat ze direct zichtbaar zijn in level 1)
+loadSpeedArrowsForLevel?.(currentLevel);
 
 // ✅ Highscores: direct lokaal laden + tonen, daarna server sync
 loadHighscoresFromLocal();
@@ -6527,6 +6557,7 @@ if (isMobileLayout && !(playerProfile && playerProfile.name)) {
 }
 
 loop();
+
 
 
 
