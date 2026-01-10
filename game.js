@@ -2678,6 +2678,7 @@ function loadSpeedArrowsForLevel(level) {
 }
 
 
+
 function resetEntities() {
   // ─────────────────────────────────────────────
   // PACMAN DEATH STATE RESETTEN
@@ -2725,6 +2726,13 @@ function resetEntities() {
   player.nextDir = { x: 0, y: 0 };
   player.speed   = SPEED_CONFIG.playerSpeed;
 
+  // ✅ SPEED ARROW BOOST RESET (Pacman)
+  player.baseSpeed = player.speed;
+  player.speedBoostUntil = 0;
+  player.speedBoostMult = 1;
+  player.speedAuraMs = 0;
+  player.lastSpeedArrowKey = null;
+
   // ─────────────────────────────────────────────
   // FRIGHT / GHOST CHAIN RESET
   // ─────────────────────────────────────────────
@@ -2748,8 +2756,8 @@ function resetEntities() {
   // ─────────────────────────────────────────────
   // GHOSTS RESET
   // ─────────────────────────────────────────────
-  const base = 0;                       // gameTime wordt hieronder op 0 gezet → release schema vanaf 0
-  const delays = [0, 2000, 4000, 6000]; // ✅ exact zoals vroeger
+  const base = 0;
+  const delays = [0, 2000, 4000, 6000];
 
   ghosts.forEach((g, index) => {
     const startTile = ghostStarts[index] || ghostPen;
@@ -2763,23 +2771,25 @@ function resetEntities() {
     g.released = false;
     g.hasExitedBox = false;
 
-    // ✅ BELANGRIJK: bij nieuw level / volledige reset moeten ze weer door de balk kunnen
     g.hasExitedHouse = false;
-
-    // ✅ BELANGRIJK: 1x-trigger reset (voorkomt “vast hangen” in electric zone state)
     g.wasInElectricZone = false;
 
     g.speed = SPEED_CONFIG.ghostSpeed;
     g.mode  = GHOST_MODE_SCATTER;
 
-    // ✅ releaseTime opnieuw zetten RELATIEF aan start van ronde
+    // ✅ SPEED ARROW BOOST RESET (Ghosts)
+    g.baseSpeed = g.speed;
+    g.speedBoostUntil = 0;
+    g.speedBoostMult = 1;
+    g.speedAuraMs = 0;
+    g.lastSpeedArrowKey = null;
+
     g.releaseTime = base + (delays[index] ?? 0);
 
     g.targetTile = g.scatterTile
       ? { c: g.scatterTile.c, r: g.scatterTile.r }
       : null;
 
-    // EATEN-tracking reset (veilig)
     g.eatenStartTime = null;
     g.lastDistToPen = null;
     g.lastDistImprovementTime = null;
@@ -2794,7 +2804,6 @@ function resetEntities() {
   if (typeof spawnSpikyBallForLevel3 === "function") {
     spawnSpikyBallForLevel3();
   } else {
-    // fallback: als de functie nog niet bestaat, zet hem uit
     if (typeof spikyBall !== "undefined" && spikyBall) spikyBall.active = false;
   }
 
@@ -2826,11 +2835,9 @@ function resetEntities() {
   if (typeof strawberry !== "undefined") strawberry = null;
   if (typeof strawberriesSpawned !== "undefined") strawberriesSpawned = 0;
 
-  // 🍌 banaan reset
   if (typeof banana !== "undefined") banana = null;
   if (typeof bananasSpawned !== "undefined") bananasSpawned = 0;
 
-  // 🍐 peer reset
   if (typeof pear !== "undefined") pear = null;
   if (typeof pearsSpawned !== "undefined") pearsSpawned = 0;
 
@@ -2839,29 +2846,23 @@ function resetEntities() {
   // ─────────────────────────────────────────────
   // 💣 CANNON SYSTEM RESET (LEVEL 2 + 3)
   // ─────────────────────────────────────────────
-
-  // ✅ nieuw schaalbaar wavesysteem resetten
   if (typeof cannonWaveTriggered !== "undefined") {
     cannonWaveTriggered = [];
   }
 
-  // ✅ alle geplande cannon spawns stoppen (belangrijk bij death/reset/level switch)
   if (typeof cannonWaveTimeoutIds !== "undefined" && Array.isArray(cannonWaveTimeoutIds)) {
     cannonWaveTimeoutIds.forEach(id => clearTimeout(id));
     cannonWaveTimeoutIds.length = 0;
   }
 
-  // ✅ actieve bullets altijd weg
   if (Array.isArray(activeCannonballs)) {
     activeCannonballs.length = 0;
   }
 
-  // (oud systeem mag blijven staan; breekt niks)
   if (typeof cannonWave1Triggered !== "undefined") cannonWave1Triggered = false;
   if (typeof cannonWave2Triggered !== "undefined") cannonWave2Triggered = false;
   if (typeof cannonWave3Triggered !== "undefined") cannonWave3Triggered = false;
 
-  // ✅ HUD state reset (alleen als het bestaat)
   if (typeof cannonHUD !== "undefined" && cannonHUD) {
     if (cannonHUD.left)  cannonHUD.left.active  = false;
     if (cannonHUD.right) cannonHUD.right.active = false;
@@ -2883,10 +2884,12 @@ function resetEntities() {
   }
 
   frightActivationCount = 0;
+
+  // ✅ SPEED ARROWS opnieuw laden na entity reset
+  loadSpeedArrowsForLevel?.(currentLevel);
+
   stopAllSirens();
 }
-
-
 
 function resetAfterDeath() {
   // ─────────────────────────────────────────────
