@@ -1516,19 +1516,36 @@ function submitRunToHighscores() {
 // ─────────────────────────────────────────────
 // Spawn ghost speed boosters for current level
 // ─────────────────────────────────────────────
+
+// ✅ 1 bron van waarheid: we gebruiken speedBoosters in logica
+// en ghostBoosters als alias voor tekenen (zodat jouw drawGhostBoosters niet breekt)
+function syncGhostBoostersAlias() {
+  ghostBoosters = speedBoosters;
+}
+
 function spawnGhostBoostersForLevel(level = currentLevel) {
-  ghostBoosters = [];
+  speedBoosters = [];
 
   const placements = GHOST_BOOSTERS_BY_LEVEL[level];
-  if (!placements) return;
+  if (!placements) {
+    syncGhostBoostersAlias();
+    return;
+  }
 
   placements.forEach(p => {
-    ghostBoosters.push({
+    speedBoosters.push({
       c: p.c,
-      r: p.r
+      r: p.r,
+      // optioneel per booster instelbaar:
+      // durationMs: 3000,
+      // mult: 1.6
     });
   });
+
+  // ✅ alias updaten zodat drawGhostBoosters altijd dezelfde lijst gebruikt
+  syncGhostBoostersAlias();
 }
+
 
 
 function getAvatarImage(dataUrl) {
