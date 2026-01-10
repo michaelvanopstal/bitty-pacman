@@ -2761,6 +2761,11 @@ function resetEntities() {
   player.boostMult = 1;
   player.wasOnGhostBooster = false;
 
+  // ✅ SPEEDBOOST RESET (STAP 4)
+  if (typeof pacSpeedBoostTimer !== "undefined") {
+    pacSpeedBoostTimer = 0;
+  }
+
   // ─────────────────────────────────────────────
   // FRIGHT / GHOST CHAIN RESET
   // ─────────────────────────────────────────────
@@ -2824,6 +2829,10 @@ function resetEntities() {
     g.boostTimer = 0;
     g.boostMult = 1;
     g.wasOnGhostBooster = false;
+
+    // ✅ SPEEDBOOST RESET (STAP 4)
+    g.speedBoostTimer = 0;
+    g.speedBoostMult  = (typeof SPEEDBOOST_MULTIPLIER !== "undefined") ? SPEEDBOOST_MULTIPLIER : 1;
   });
 
   gameTime = 0;
@@ -2931,8 +2940,6 @@ function resetEntities() {
     spawnGhostBoostersForLevel(currentLevel);
   }
 }
-
-
 
 function resetAfterDeath() {
   // ─────────────────────────────────────────────
