@@ -4585,6 +4585,11 @@ function drawGhosts() {
   const size = TILE_SIZE * ghostScale;
 
   for (const g of ghosts) {
+
+    // ⚡ SPEED AURA (STAP 5B)
+    // → altijd EERST tekenen, zodat hij achter de ghost zit
+    drawSpeedAura(g);
+
     ctx.save();
     ctx.translate(g.x, g.y);
 
@@ -4632,7 +4637,6 @@ function drawGhosts() {
     ctx.restore();
   }
 }
-
 
 
 
