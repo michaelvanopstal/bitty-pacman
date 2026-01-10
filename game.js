@@ -1266,11 +1266,18 @@ function applySpeedBoostRuntime(ent, deltaMs, nowMs) {
   if (ent.speedBoostUntil && nowMs < ent.speedBoostUntil) {
     const base = (ent.baseSpeed != null) ? ent.baseSpeed : ent.speed;
     ent.speed = base * (ent.speedBoostMult || 1);
-  } else {
-    // terug naar normaal
-    if (ent.baseSpeed != null) ent.speed = ent.baseSpeed;
+    return;
+  }
+
+  // boost klaar → HARD terug naar normaal + flags uit
+  ent.speedBoostUntil = 0;
+  ent.speedBoostMult  = 1;
+
+  if (ent.baseSpeed != null) {
+    ent.speed = ent.baseSpeed;
   }
 }
+
 function handleSpeedArrowContact(ent, nowMs) {
   const arrow = isOnSpeedArrowTile(ent);
   if (!arrow) {
