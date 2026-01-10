@@ -5972,6 +5972,16 @@ if (timerRunning && roundStarted && !introActive && !gameOver) {
     updatePlayer();
     updateGhosts();
 
+    // ✅ GHOST BOOSTERS UPDATE (nieuw, veilig)
+    // - check overlaps (pacman + ghosts)
+    // - update timers
+    if (typeof checkGhostBoosterOverlaps === "function") {
+      checkGhostBoosterOverlaps();
+    }
+    if (typeof updateSpeedBoosts === "function") {
+      updateSpeedBoosts(FRAME_TIME);
+    }
+
        // ✅ SPIKY BALL UPDATE + GHOST COLLISION (LEVEL 3 + 4)
     if (
       typeof currentLevel !== "undefined" &&
@@ -6080,7 +6090,6 @@ if (timerRunning && roundStarted && !introActive && !gameOver) {
     drawPear?.();
   }
 
-
   // ✅ Spiky rolling ball (LEVEL 3 + 4)
   if (
     typeof currentLevel !== "undefined" &&
@@ -6088,6 +6097,9 @@ if (timerRunning && roundStarted && !introActive && !gameOver) {
   ) {
     drawSpikyBall?.();
   }
+
+  // ✅ GHOST BOOSTERS TEKENEN (nieuw) — altijd zichtbaar op de baan
+  drawGhostBoosters?.();
 
   drawPlayer();
   drawGhosts();
@@ -6339,5 +6351,3 @@ if (isMobileLayout && !(playerProfile && playerProfile.name)) {
 }
 
 loop();
-
-
