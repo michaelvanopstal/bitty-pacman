@@ -3687,8 +3687,6 @@ function setGhostTarget(g) {
   g.targetTile = { c: playerC, r: playerR };
 }
 
-
-
 function updateOneGhost(g) {
   if (g.mode === GHOST_MODE_EATEN) {
     g.speed = SPEED_CONFIG.ghostEyesSpeed;
@@ -3959,6 +3957,13 @@ function updateOneGhost(g) {
       g.released = false;
       g.hasExitedBox = false;
       g.hasExitedHouse = false;
+
+      // ✅ STAP 5D: SPEEDBOOST reset bij ogen → pen (nieuw)
+      g.speedBoostTimer = 0;
+      g.speedBoostMult  = (typeof SPEEDBOOST_MULTIPLIER !== "undefined") ? SPEEDBOOST_MULTIPLIER : 1;
+      if (typeof applyGhostSpeedWithBoost === "function") {
+        applyGhostSpeedWithBoost(g);
+      }
 
       if (g.scatterTile) {
         g.targetTile = { c: g.scatterTile.c, r: g.scatterTile.r };
