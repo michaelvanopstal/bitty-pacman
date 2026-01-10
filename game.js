@@ -2573,6 +2573,17 @@ if (
 
   spikyBall = null;
 }
+
+
+function loadSpeedArrowsForLevel(level) {
+  speedArrows = (SPEED_ARROWS_BY_LEVEL[level] || []).map(a => ({
+    c: a.c,
+    r: a.r,
+    dir: { x: a.dir.x, y: a.dir.y }
+  }));
+}
+
+
 function resetEntities() {
   // ─────────────────────────────────────────────
   // PACMAN DEATH STATE RESETTEN
