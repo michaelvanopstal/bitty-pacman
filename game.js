@@ -387,17 +387,11 @@ const BOOST_CONFIG = {
   ghost:  { durationMs: 3000, mult: 1.35 }  // Ghost boost
 };
 
-// Plaatsing per level (jij zet hier de tiles waar je ze wil hebben)
-// c = column (x tile), r = row (y tile)
 const GHOST_BOOSTERS_BY_LEVEL = {
   1: [
-    // voorbeeld:
-    // { c: 13, r: 11 },
-    // { c: 1,  r: 14 }
+    { c: pac.c, r: pac.r }, // ✅ test: exact op Pacman start-tile
   ],
-  2: [
-    // { c: 10, r: 9 }
-  ],
+  2: [],
   3: [],
   4: []
 };
