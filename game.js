@@ -387,14 +387,17 @@ const BOOST_CONFIG = {
   ghost:  { durationMs: 3000, mult: 1.35 }  // Ghost boost
 };
 
+
 const GHOST_BOOSTERS_BY_LEVEL = {
   1: [
-    { c: pac.c, r: pac.r }, // ✅ test: exact op Pacman start-tile
+    { c: 13, r: 11 },
+    { c: 1,  r: 14 }
   ],
   2: [],
   3: [],
   4: []
 };
+
 
 // Runtime lijst met boosters die actief zijn in het huidige level
 let ghostBoosters = [];
