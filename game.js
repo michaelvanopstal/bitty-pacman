@@ -390,8 +390,15 @@ const BOOST_CONFIG = {
 
 const GHOST_BOOSTERS_BY_LEVEL = {
   1: [
-    { c: 13, r: 11 },
-    { c: 1,  r: 14 }
+    // links (verticaal)
+    { c: 6,  r: 12 },
+    { c: 6,  r: 13 },
+    { c: 6,  r: 14 },
+
+    // rechts (verticaal)
+    { c: 21, r: 12 },
+    { c: 21, r: 13 },
+    { c: 21, r: 14 }
   ],
   2: [],
   3: [],
