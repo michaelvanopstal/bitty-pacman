@@ -5126,33 +5126,37 @@ function drawLevel4DarknessMask() {
 // ─────────────────────────────────────────────
 // DRAW: GHOST SPEED BOOSTERS (<<>>)
 // ─────────────────────────────────────────────
-function drawBoosterSymbol(x, y) {
+function drawBoosterSymbol(x, y, dir = "h") {
   ctx.save();
 
   ctx.font = "bold 18px Arial";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
+  let symbol = "<<>>"; // horizontaal standaard
+  if (dir === "v") {
+    symbol = "▲▼"; // verticaal
+  }
+
   // witte rand
   ctx.lineWidth = 4;
   ctx.strokeStyle = "white";
-  ctx.strokeText("<<>>", x, y);
+  ctx.strokeText(symbol, x, y);
 
   // blauwe vulling
   ctx.fillStyle = "#1e90ff";
-  ctx.fillText("<<>>", x, y);
+  ctx.fillText(symbol, x, y);
 
   ctx.restore();
 }
+
 
 function drawGhostBoosters() {
   if (!Array.isArray(speedBoosters) || speedBoosters.length === 0) return;
 
   for (const b of speedBoosters) {
-    if (!b) continue;
-
     const pos = tileCenter(b.c, b.r);
-    drawBoosterSymbol(pos.x, pos.y);
+    drawBoosterSymbol(pos.x, pos.y, b.dir);
   }
 }
 
