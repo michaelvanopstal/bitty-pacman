@@ -2779,20 +2779,17 @@ function resetEntities() {
   // PACMAN RESET
   // ─────────────────────────────────────────────
   player.x = tileCenter(pac.c, pac.r).x;
-  player.y = tileCenter(pac.c, pac.r).y;
-  player.dir     = { x: 0, y: 0 };
-  player.nextDir = { x: 0, y: 0 };
-  player.speed   = SPEED_CONFIG.playerSpeed;
+player.y = tileCenter(pac.c, pac.r).y;
+player.dir     = { x: 0, y: 0 };
+player.nextDir = { x: 0, y: 0 };
 
-  // ✅ BOOST RESET (nieuw)
-  player.boostTimer = 0;
-  player.boostMult = 1;
-  player.wasOnGhostBooster = false;
+// 🔥 snelheid altijd terug naar normaal
+player.speed = SPEED_CONFIG.playerSpeed;
 
-  // ✅ SPEEDBOOST RESET (STAP 4)
-  if (typeof pacSpeedBoostTimer !== "undefined") {
-    pacSpeedBoostTimer = 0;
-  }
+// ✅ SPEEDBOOST RESET (na doodgaan / restart)
+if (typeof pacSpeedBoostTimer !== "undefined") {
+  pacSpeedBoostTimer = 0;
+}
 
   // ─────────────────────────────────────────────
   // FRIGHT / GHOST CHAIN RESET
