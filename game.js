@@ -4285,6 +4285,15 @@ function checkCollision() {
       g.speed = SPEED_CONFIG.ghostEyesSpeed; // ✅ vaste oogjes-snelheid (niet level-scaled)
       g.targetTile = { c: startGhostTile.c, r: startGhostTile.r };
 
+      // ✅ SPEEDBOOST reset zodra ghost wordt opgegeten (nieuw)
+      g.speedBoostTimer = 0;
+      g.speedBoostMult  = (typeof SPEEDBOOST_MULTIPLIER !== "undefined") ? SPEEDBOOST_MULTIPLIER : 1;
+
+      // (extra safe) ook je oude boost vars resetten als je die nog gebruikt:
+      g.boostTimer = 0;
+      g.boostMult  = 1;
+      g.wasOnGhostBooster = false;
+
       continue;
     }
 
@@ -4419,6 +4428,7 @@ function checkCollision() {
     }
   }
 }
+
 function handleGhostSpikyBallCollision() {
   // Geen bal → geen collision
   if (!spikyBall || !spikyBall.active) return;
