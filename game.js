@@ -391,14 +391,12 @@ const BOOST_CONFIG = {
 const GHOST_BOOSTERS_BY_LEVEL = {
   1: [
     // links – verticaal
-    { c: 6,  r: 12, dir: "v" },
     { c: 6,  r: 13, dir: "v" },
-    { c: 6,  r: 14, dir: "v" },
+   
 
     // rechts – verticaal
-    { c: 21, r: 12, dir: "v" },
     { c: 21, r: 13, dir: "v" },
-    { c: 21, r: 14, dir: "v" },
+
 
     // voorbeeld elders – horizontaal
     // { c: 10, r: 9, dir: "h" }
