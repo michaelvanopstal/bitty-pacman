@@ -5173,6 +5173,7 @@ function drawGhostBoosters() {
 
 
 
+
 function drawPlayer() {
   const size   = TILE_SIZE * pacmanScale;
   const radius = size / 2;
