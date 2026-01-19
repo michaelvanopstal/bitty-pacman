@@ -1587,8 +1587,8 @@ function applySpeedsForLevel() {
 
   if (currentLevel === 1) {
     // ✅ Level 1: rustig / basis
-    SPEED_CONFIG.playerSpeed      = BASE_SPEED * 1.20; // ≈ 3.36
-    SPEED_CONFIG.ghostSpeed       = SPEED_CONFIG.playerSpeed * 0.95;
+    SPEED_CONFIG.playerSpeed      = BASE_SPEED * 1.22; // ≈ 3.36
+    SPEED_CONFIG.ghostSpeed       = SPEED_CONFIG.playerSpeed * 0.96;
     SPEED_CONFIG.ghostTunnelSpeed = SPEED_CONFIG.playerSpeed * 0.45;
     SPEED_CONFIG.ghostFrightSpeed = SPEED_CONFIG.playerSpeed * 0.60;
 
