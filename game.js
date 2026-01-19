@@ -869,7 +869,7 @@ const cherryIconConfig = {
 // ---------------------------------------------------------------------------
 
 // ✅ instelbaar (default)
-let SPEEDBOOST_DURATION_MS = 3000;  // 3 seconden
+let SPEEDBOOST_DURATION_MS = 2000;  // 3 seconden
 let SPEEDBOOST_MULTIPLIER  = 1.60;  // 60% sneller
 
 // Deze array vullen we per level (STAP 5/6). Voor nu bestaat hij alvast.
