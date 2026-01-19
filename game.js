@@ -392,10 +392,12 @@ const GHOST_BOOSTERS_BY_LEVEL = {
   1: [
     // links – verticaal
     { c: 6,  r: 13, dir: "v" },
+     { c: 13,  r: 0, dir: "h" },
    
 
     // rechts – verticaal
     { c: 21, r: 13, dir: "v" },
+     { c: 13,  r: 28, dir: "h" },
 
 
     // voorbeeld elders – horizontaal
