@@ -1762,10 +1762,39 @@ function savePlayerProfile() {
 
 
 function setPlayerCardPositionAutoOnce() {
-  // ✅ VASTE POSITIE (pas deze 2 waarden aan naar smaak)
-  playerCardCfg.x = 1040;  // linkspositie
-  playerCardCfg.y = 80;   // toppositie
+  // Op mobiel gebruiken we de CSS-modal (centered),
+  // daar hoeven we niet met JS te schuiven.
+  if (isMobileLayout) return;
+
+  const card = document.getElementById("playerCard");
+  const shell = document.getElementById("gameShell");
+  if (!card || !shell) return;
+
+  // Bepaal de actuele positie van het geschaalde spel
+  const shellRect = shell.getBoundingClientRect();
+  const cardRect  = card.getBoundingClientRect();
+
+  // Hoe ver naast/boven de game wil je het kaartje?
+  const marginRight = 20;  // px rechts van het spel
+  const marginTop   = 20;  // px onder de bovenkant van het spel
+
+  // Standaard: rechts naast de game, beetje naar beneden
+  let x = shellRect.right + marginRight;
+  let y = shellRect.top   + marginTop;
+
+  // Als er rechts geen ruimte is (kleiner scherm),
+  // schuiven we de card naar de rechterkant van het scherm.
+  if (x + cardRect.width > window.innerWidth - 10) {
+    x = window.innerWidth - cardRect.width - 10;
+  }
+
+  // Zorg dat 'ie niet boven uit beeld valt
+  if (y < 10) y = 10;
+
+  playerCardCfg.x = x;
+  playerCardCfg.y = y;
 }
+
 
 
 
