@@ -328,15 +328,8 @@ function applyResponsiveLayout() {
     hsPanel.classList.remove("open");
   }
 
-  // Player card op desktop opnieuw positioneren (als die functies bestaan)
-  if (
-    typeof setPlayerCardPositionAutoOnce === "function" &&
-    typeof applyPlayerCardTransform === "function" &&
-    !isMobileLayout
-  ) {
-    setPlayerCardPositionAutoOnce();
-    applyPlayerCardTransform();
-  }
+  // ⚠️ GEEN playerCard-aanroepen hier meer,
+  // zodat playerCardCfg niet te vroeg wordt aangesproken.
 }
 
 window.addEventListener("resize", applyResponsiveLayout);
