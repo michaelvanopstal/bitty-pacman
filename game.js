@@ -1771,38 +1771,39 @@ function savePlayerProfile() {
 
 
 function setPlayerCardPositionAutoOnce() {
-  // Op mobiel gebruiken we de CSS-modal (centered),
-  // daar hoeven we niet met JS te schuiven.
+  // Op mobiel gebruiken we de CSS-modal (gecentreerd),
+  // daar hoeven we niets met JS te doen.
   if (isMobileLayout) return;
 
-  const card = document.getElementById("playerCard");
+  const card  = document.getElementById("playerCard");
   const shell = document.getElementById("gameShell");
   if (!card || !shell) return;
 
-  // Bepaal de actuele positie van het geschaalde spel
+  // Actuele (geschaalde) positie van het spel
   const shellRect = shell.getBoundingClientRect();
   const cardRect  = card.getBoundingClientRect();
 
-  // Hoe ver naast/boven de game wil je het kaartje?
-  const marginRight = 20;  // px rechts van het spel
-  const marginTop   = 20;  // px onder de bovenkant van het spel
+  // Afstanden t.o.v. de game
+  const marginRight = 20; // px rechts van het spel
+  const marginTop   = 20; // px onder de bovenkant van het spel
 
-  // Standaard: rechts naast de game, beetje naar beneden
+  // Standaardpositie: rechts naast de game
   let x = shellRect.right + marginRight;
-  let y = shellRect.top   + marginTop;
+  let y = shellRect.top + marginTop;
 
-  // Als er rechts geen ruimte is (kleiner scherm),
-  // schuiven we de card naar de rechterkant van het scherm.
+  // Als er rechts geen ruimte is → schuif naar binnen
   if (x + cardRect.width > window.innerWidth - 10) {
     x = window.innerWidth - cardRect.width - 10;
   }
 
-  // Zorg dat 'ie niet boven uit beeld valt
+  // Nooit boven uit beeld
   if (y < 10) y = 10;
 
-  playerCardCfg.x = x;
-  playerCardCfg.y = y;
+  // Opslaan in config (applyPlayerCardTransform gebruikt dit)
+  playerCardCfg.x = Math.round(x);
+  playerCardCfg.y = Math.round(y);
 }
+
 
 
 
